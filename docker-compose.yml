@@ -1,0 +1,83 @@
+version: '3'
+
+services:
+    nginx:
+        image: nginx:latest
+        volumes:
+            - ./:/var/www
+            - ./docker/nginx/conf.d/:/etc/nginx/conf.d
+        ports:
+            - "8083:8083"
+            - "8084:8084"
+
+        container_name: rus_kvant_nginx
+        depends_on:
+            - laravel
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
+    laravel:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile
+        volumes:
+            - ./laravel/:/var/www/laravel
+        working_dir: /var/www/laravel
+        container_name: rus_kvant_laravel
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
+#    laravel_commands:
+#        build:
+#            context: .
+#            dockerfile: docker/Dockerfile
+#        volumes:
+#            - ./laravel/:/var/www/laravel
+#            - ./gii/:/var/www/gii
+#            - ./react-admin/:/var/www/react-admin
+#            - ./react/:/var/www/react
+#        working_dir: /var/www/laravel
+#        container_name: rus_kvant_laravel_commands
+#        extra_hosts:
+#            - "host.docker.internal:host-gateway"
+#        entrypoint: sh -c "chmod -R 775 storage && chmod -R ugo+rw storage && sleep 30 && composer install && php artisan migrate --force"
+    db:
+        platform: linux/x86_64
+        image: mysql:8.0
+        restart: always
+        volumes:
+            - ./docker/db:/var/lib/mysql
+        environment:
+            MYSQL_DATABASE: docker_db
+            MYSQL_ROOT_PASSWORD: 1111
+        ports:
+            - 8101:3306
+        command: mysqld --character-set-server=utf8 --collation-server=utf8_unicode_ci
+        container_name: rus_kvant_db
+
+    phpmyadmin:
+        image: phpmyadmin/phpmyadmin
+        container_name: rus_kvant_phpmyadmin
+        depends_on:
+            - db
+        environment:
+            - PMA_ARBITRARY=1
+            - UPLOAD_LIMIT=100M
+        restart: always
+        ports:
+            - 8086:80
+        volumes:
+            - /sessions
+
+    nuxt:
+        build:
+            context: .
+            dockerfile: docker/nuxt/Dockerfile
+        volumes:
+            - ./nuxt/:/var/www/nuxt
+            - /nuxt/node_modules
+
+        ports:
+            - 3000:3000
+            - 24678:24678
+        command: bash -c "npm i && npm run dev"
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
